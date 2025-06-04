@@ -1,1 +1,4 @@
-button "Google-a get", "https://google.com", "F5F5F5", 144, 52;
+bgcolor "lightblue"
+image "https://example.com/image.jpg", 200, 150
+textbox "ad", 200, 40
+button "Open AI", "https://openai.com", "green", 100, 50
