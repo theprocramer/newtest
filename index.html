@@ -15,6 +15,10 @@
     #output {
       margin: 20px;
     }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -29,6 +33,10 @@ function printOutput(html) {
   output.appendChild(wrapper);
 }
 
+function showError(msg) {
+  printOutput(`<div class="error">Xəta: ${msg}</div>`);
+}
+
 function tokenize(code) {
   return code
     .split("\n")
@@ -38,72 +46,90 @@ function tokenize(code) {
 
 function parse(tokens) {
   return tokens.map(token => {
-    const match = token.match(/^(\w+)\s+"([^"]+)"(?:,\s*("[^"]+"|\d+)(?:,\s*("[^"]+"|\d+))?(?:,\s*"([^"]+)")?)?;?$/);
-    if (!match) throw new Error("Sintaksis xətası: " + token);
-    const [, type, val1, val2, val3, val4] = match;
-    return { type, args: [val1, val2, val3, val4].filter(Boolean).map(arg => {
+   const match = token.match(/^(\w+)\s+"([^"]+)"(?:,\s*("[^"]+"|\d+)(?:,\s*("[^"]+"|\d+))?(?:,\s*"([^"]+)")?)?;?$/);
+    const args = rest.join(" ").split(",").map(arg => {
+      arg = arg.trim();
       if (arg.startsWith('"') && arg.endsWith('"')) return arg.slice(1, -1);
       if (!isNaN(arg)) return parseInt(arg);
       return arg;
-    }) };
+    });
+    return { type: command, args };
   });
 }
 
 function run(ast) {
   for (const node of ast) {
-    switch (node.type) {
-      case "bgcolor":
-        document.body.style.backgroundColor = node.args[0];
-        break;
-      case "bgimage":
-        document.body.style.backgroundImage = `url('${node.args[0]}')`;
-        break;
-      case "audio":
-        const audio = document.createElement("audio");
-        audio.src = node.args[0];
-        if (node.args[1] === "true") audio.autoplay = true;
-        audio.controls = true;
-        printOutput(audio.outerHTML);
-        break;
-      case "image":
-        const img = document.createElement("img");
-        img.src = node.args[0];
-        img.width = parseInt(node.args[1]);
-        img.height = parseInt(node.args[2]);
-        if (node.args[3]) {
-          const link = document.createElement("a");
-          link.href = node.args[3];
-          link.target = "_blank";
-          link.appendChild(img);
-          printOutput(link.outerHTML);
-        } else {
-          printOutput(img.outerHTML);
-        }
-        break;
-      case "textbox":
-        const input = document.createElement("input");
-        input.type = "text";
-        input.name = node.args[0];
-        input.style.width = `${node.args[1]}px`;
-        input.style.height = `${node.args[2]}px`;
-        printOutput(input.outerHTML);
-        break;
-      case "button":
-        const btn = document.createElement("button");
-        btn.textContent = node.args[0];
-        btn.style.backgroundColor = node.args[2];
-        btn.style.width = `${node.args[3]}px`;
-        btn.style.height = `${node.args[4]}px`;
-        btn.onclick = () => window.open(node.args[1], "_blank");
-        printOutput(btn.outerHTML);
-        break;
-      default:
-        throw new Error("Naməlum əmr: " + node.type);
+    try {
+      switch (node.type) {
+        case "bgcolor":
+          if (node.args.length < 1) throw "bgcolor üçün rəng göstərilməlidir.";
+          document.body.style.backgroundColor = node.args[0];
+          break;
+
+        case "bgimage":
+          if (node.args.length < 1) throw "bgimage üçün URL göstərilməlidir.";
+          document.body.style.backgroundImage = `url('${node.args[0]}')`;
+          break;
+
+        case "audio":
+          if (node.args.length < 1) throw "audio üçün ən azı 1 argument lazımdır.";
+          const audio = document.createElement("audio");
+          audio.src = node.args[0];
+          audio.controls = true;
+          if (String(node.args[1]).toLowerCase() === "true") {
+            audio.autoplay = true;
+          }
+          printOutput(audio.outerHTML);
+          break;
+
+        case "image":
+          if (node.args.length < 3) throw "image üçün 3 və ya 4 argument lazımdır.";
+          const img = document.createElement("img");
+          img.src = node.args[0];
+          img.width = parseInt(node.args[1]) || 100;
+          img.height = parseInt(node.args[2]) || 100;
+          if (node.args[3]) {
+            const link = document.createElement("a");
+            link.href = node.args[3];
+            link.target = "_blank";
+            link.appendChild(img);
+            printOutput(link.outerHTML);
+          } else {
+            printOutput(img.outerHTML);
+          }
+          break;
+
+        case "textbox":
+          if (node.args.length < 3) throw "textbox üçün 3 argument lazımdır.";
+          const input = document.createElement("input");
+          input.type = "text";
+          input.name = node.args[0];
+          input.style.width = `${parseInt(node.args[1]) || 150}px`;
+          input.style.height = `${parseInt(node.args[2]) || 30}px`;
+          printOutput(input.outerHTML);
+          break;
+
+        case "button":
+          if (node.args.length < 5) throw "button üçün 5 argument lazımdır.";
+          const btn = document.createElement("button");
+          btn.textContent = node.args[0];
+          btn.onclick = () => window.open(node.args[1], "_blank");
+          btn.style.backgroundColor = node.args[2];
+          btn.style.width = `${parseInt(node.args[3]) || 100}px`;
+          btn.style.height = `${parseInt(node.args[4]) || 40}px`;
+          printOutput(btn.outerHTML);
+          break;
+
+        default:
+          throw `Naməlum əmr: ${node.type}`;
+      }
+    } catch (err) {
+      showError(err);
     }
   }
 }
 
-// Faylı yükləyir və interpreter-i işə salır
+// ELS faylını yükləyir və çalışdırır
 fetch("main.els")
   .then(res => res.text())
   .then(code => {
@@ -111,7 +137,7 @@ fetch("main.els")
     const ast = parse(tokens);
     run(ast);
   })
-  .catch(err => printOutput("Xəta: " + err.message));
+  .catch(err => showError(err.message || err));
 </script>
 
 </body>
