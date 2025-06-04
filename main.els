@@ -1,4 +1,2 @@
-bgcolor "lightblue"
-image "https://example.com/image.jpg", 200, 150
-textbox "ad", 200, 40
-button "Open AI", "https://openai.com", "green", 100, 50
+bgcolor "f5f5f5"
+button "exemplesoft", "https://exemplesoft.pages.dev", "#FFFFFF  ", 100, 50
