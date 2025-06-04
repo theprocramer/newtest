@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <title>ELS Interpreter</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+    #output {
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="output"></div>
+
+<script>
+function printOutput(html) {
+  const output = document.getElementById("output");
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  output.appendChild(wrapper);
+}
+
+function tokenize(code) {
+  return code
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith("//"));
+}
+
+function parse(tokens) {
+  return tokens.map(token => {
+    const match = token.match(/^(\w+)\s+"([^"]+)"(?:,\s*("[^"]+"|\d+)(?:,\s*("[^"]+"|\d+))?(?:,\s*"([^"]+)")?)?;?$/);
+    if (!match) throw new Error("Sintaksis xətası: " + token);
+    const [, type, val1, val2, val3, val4] = match;
+    return { type, args: [val1, val2, val3, val4].filter(Boolean).map(arg => {
+      if (arg.startsWith('"') && arg.endsWith('"')) return arg.slice(1, -1);
+      if (!isNaN(arg)) return parseInt(arg);
+      return arg;
+    }) };
+  });
+}
+
+function run(ast) {
+  for (const node of ast) {
+    switch (node.type) {
+      case "bgcolor":
+        document.body.style.backgroundColor = node.args[0];
+        break;
+      case "bgimage":
+        document.body.style.backgroundImage = `url('${node.args[0]}')`;
+        break;
+      case "audio":
+        const audio = document.createElement("audio");
+        audio.src = node.args[0];
+        if (node.args[1] === "true") audio.autoplay = true;
+        audio.controls = true;
+        printOutput(audio.outerHTML);
+        break;
+      case "image":
+        const img = document.createElement("img");
+        img.src = node.args[0];
+        img.width = parseInt(node.args[1]);
+        img.height = parseInt(node.args[2]);
+        if (node.args[3]) {
+          const link = document.createElement("a");
+          link.href = node.args[3];
+          link.target = "_blank";
+          link.appendChild(img);
+          printOutput(link.outerHTML);
+        } else {
+          printOutput(img.outerHTML);
+        }
+        break;
+      case "textbox":
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = node.args[0];
+        input.style.width = `${node.args[1]}px`;
+        input.style.height = `${node.args[2]}px`;
+        printOutput(input.outerHTML);
+        break;
+      case "button":
+        const btn = document.createElement("button");
+        btn.textContent = node.args[0];
+        btn.style.backgroundColor = node.args[2];
+        btn.style.width = `${node.args[3]}px`;
+        btn.style.height = `${node.args[4]}px`;
+        btn.onclick = () => window.open(node.args[1], "_blank");
+        printOutput(btn.outerHTML);
+        break;
+      default:
+        throw new Error("Naməlum əmr: " + node.type);
+    }
+  }
+}
+
+// Faylı yükləyir və interpreter-i işə salır
+fetch("main.els")
+  .then(res => res.text())
+  .then(code => {
+    const tokens = tokenize(code);
+    const ast = parse(tokens);
+    run(ast);
+  })
+  .catch(err => printOutput("Xəta: " + err.message));
+</script>
+
+</body>
+</html>
