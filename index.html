@@ -46,7 +46,7 @@ function tokenize(code) {
 
 function parse(tokens) {
   return tokens.map(token => {
-   const match = token.match(/^(\w+)\s+"([^"]+)"(?:,\s*("[^"]+"|\d+)(?:,\s*("[^"]+"|\d+))?(?:,\s*"([^"]+)")?)?;?$/);
+    const [command, ...rest] = token.split(/\s+/);
     const args = rest.join(" ").split(",").map(arg => {
       arg = arg.trim();
       if (arg.startsWith('"') && arg.endsWith('"')) return arg.slice(1, -1);
